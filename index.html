@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Firebase versión 8.x (compatible con WebView) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 20px;
+      background: #0f0f0f;
+      color: #FFD700;
+      text-shadow: 0 0 5px #FFD700, 0 0 10px #FFA500;
+    }
+    h1 { text-align: center; }
+    #total {
+      margin: 20px 0; text-align: center;
+      font-size: 18px; font-weight: bold;
+    }
+    #searchBox, #videoSearch {
+      width: 100%; padding: 10px; margin: 10px 0;
+      font-size: 16px; border-radius: 8px;
+      border: 2px solid transparent;
+      background: #1a1a1a; color: #FFD700;
+      outline: none;
+      box-shadow: 0 0 8px rgba(138,43,226,0.8), 0 0 8px rgba(0,191,255,0.8);
+    }
+    table {
+      width: 100%; border-collapse: collapse; margin-top: 10px;
+      background: #1a1a1a; box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      color: #FFD700;
+    }
+    th, td { padding: 12px; border: 1px solid #333; text-align: left; }
+    th { background: linear-gradient(90deg,#6a11cb,#2575fc); color: #fff; }
+    tr:nth-child(even) { background: #111; }
+    .admin-tag {
+      background: #8e2de2; color: #fff; padding: 3px 6px;
+      border-radius: 6px; font-size: 12px; margin-left: 6px;
+    }
+    button {
+      padding: 8px 12px; border: 2px solid transparent; border-radius: 6px;
+      cursor: pointer; font-size: 14px; color: #FFD700;
+      background: #1a1a1a;
+      border-image: linear-gradient(45deg, #8e2de2, #2575fc) 1;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    button:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 12px rgba(37,117,252,0.6),
+                  0 6px 12px rgba(142,45,226,0.6);
+    }
+    .menu-btn { font-size: 20px; margin-bottom: 10px; }
+    .back-btn { margin: 10px 0; }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: #1a1a1a; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column;
+      color: #FFD700;
+    }
+    .card img { width: 100%; height: 150px; object-fit: cover; }
+    .card-content { padding: 10px; flex: 1; display: flex; flex-direction: column; }
+    .card h3 { margin: .25rem 0; font-size: 1rem; color: #FFD700; }
+    .card p { flex: 1; font-size: .9rem; color: #ccc; }
+    .delete-btn { margin-top: 8px; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px;
+      background: #333; color: #FFD700;
+      padding: 10px 14px; border-radius: 8px; display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+    .btn-remove-user {
+      background: #e74c3c; color: #fff;
+      padding: 6px 12px; border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .btn-remove-user:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 12px rgba(231,76,60,0.6);
+    }
+  </style>
+</head>
+<body>
+  <button class="menu-btn" id="openVideos">☰ Ver Videos</button>
+  <h1 id="titleUsers">📊 Usuarios Registrados</h1>
+  <input type="text" id="searchBox" placeholder="🔍 Buscar usuario por nombre o correo...">
+  <div id="total">Cargando usuarios...</div>
+  
+  <table id="userTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Usuario</th>
+        <th>Correo</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="userList"></tbody>
+  </table>
+
+  <section id="videosSection" style="display:none;">
+    <button class="back-btn" id="backToUsers">⬅ Volver a Usuarios</button>
+    <h1>🎥 Videos Publicados</h1>
+    <input type="text" id="videoSearch" placeholder="🔍 Buscar video por nombre o categoría...">
+    <div id="videoResults" class="cards"></div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // 🔥 Configuración de Firebase (la misma que me diste)
+    var firebaseConfig = {
+      apiKey: "AIzaSyD9_Wps61TDrx6PVfKgzvgoQLGlIRrzSaA",
+      authDomain: "weblogin-bbd5f.firebaseapp.com",
+      databaseURL: "https://weblogin-bbd5f-default-rtdb.firebaseio.com",
+      projectId: "weblogin-bbd5f",
+      storageBucket: "weblogin-bbd5f.firebasestorage.app",
+      messagingSenderId: "446557224878",
+      appId: "1:446557224878:web:0c626cf886d4ae9ad9523f",
+      measurementId: "G-33G9QVHQGQ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.database();
+
+    const totalDiv = document.getElementById("total");
+    const userList = document.getElementById("userList");
+    const searchBox = document.getElementById("searchBox");
+    const toastEl = document.getElementById("toast");
+    const userTable = document.getElementById("userTable");
+    const titleUsers = document.getElementById("titleUsers");
+    const videosSection = document.getElementById("videosSection");
+    const openVideos = document.getElementById("openVideos");
+    const backToUsers = document.getElementById("backToUsers");
+    const videoSearch = document.getElementById("videoSearch");
+    const videoResults = document.getElementById("videoResults");
+
+    let users = [];
+    let hacks = {};
+
+    function showToast(msg, ms = 2000) {
+      toastEl.textContent = msg;
+      toastEl.style.display = "block";
+      setTimeout(() => toastEl.style.display = "none", ms);
+    }
+
+    // 🔹 Render usuarios
+    function renderUsers(filter = "") {
+      userList.innerHTML = "";
+      let count = 0;
+      const query = filter.toLowerCase();
+      users.forEach((user) => {
+        if (query && !user.username.toLowerCase().includes(query) && !user.email.toLowerCase().includes(query)) return;
+        count++;
+        userList.innerHTML += `
+          <tr>
+            <td>${count}</td>
+            <td>${user.username || "Sin nombre"} ${user.authorized ? "<span class='admin-tag'>Admin</span>" : ""}</td>
+            <td>${user.email || "Sin correo"}</td>
+            <td>
+              ${user.authorized
+                ? `<button onclick="toggleAdmin('${user.uid}', false)">Quitar Admin</button>`
+                : `<button onclick="toggleAdmin('${user.uid}', true)">Hacer Admin</button>`}
+              <button class="btn-remove-user" onclick="deleteUser('${user.uid}')">🗑 Eliminar Usuario</button>
+            </td>
+          </tr>
+        `;
+      });
+      totalDiv.textContent = `👥 Usuarios registrados: ${count}`;
+    }
+
+    // 🔹 Render videos
+    function renderVideos(filter = "") {
+      videoResults.innerHTML = "";
+      const query = filter.toLowerCase();
+      Object.entries(hacks).forEach(([id, hack]) => {
+        if (query && !(hack.title || "").toLowerCase().includes(query) && !(hack.category || "").toLowerCase().includes(query)) return;
+
+        let imageUrl = "https://via.placeholder.com/300x150";
+        for (let key in hack) {
+          if (typeof hack[key] === "string" && hack[key].match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp)$/i)) {
+            imageUrl = hack[key];
+            break;
+          }
+        }
+
+        videoResults.innerHTML += `
+          <div class="card">
+            <img src="${imageUrl}" alt="Publicación">
+            <div class="card-content">
+              <h3>${hack.title || "Sin título"}</h3>
+              <p>${hack.category || "Sin categoría"}</p>
+              <button class="delete-btn" onclick="deleteVideo('${id}')">🗑 Eliminar Publicación</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // 🔹 Eliminar usuario
+    function deleteUser(uid) {
+      db.ref("users/" + uid).remove()
+        .then(() => showToast("🗑 Usuario eliminado"))
+        .catch(() => showToast("⚠️ Error al eliminar usuario"));
+    }
+
+    // 🔧 Toggle Admin
+    function toggleAdmin(uid, makeAdmin) {
+      db.ref("users/" + uid).update({ authorized: makeAdmin })
+        .then(() => showToast(makeAdmin ? "✅ Ahora es admin" : "❌ Ya no es admin"))
+        .catch(() => showToast("⚠️ Error al actualizar permisos"));
+    }
+
+    // 🔧 Eliminar video
+    function deleteVideo(id) {
+      db.ref("hacks/" + id).remove()
+        .then(() => showToast("🗑 Publicación eliminada"))
+        .catch(() => showToast("⚠️ Error eliminando publicación"));
+    }
+
+    // Eventos
+    searchBox.addEventListener("input", () => renderUsers(searchBox.value));
+    videoSearch.addEventListener("input", () => renderVideos(videoSearch.value));
+
+    openVideos.addEventListener("click", () => {
+      userTable.style.display = "none";
+      titleUsers.style.display = "none";
+      searchBox.style.display = "none";
+      totalDiv.style.display = "none";
+      videosSection.style.display = "block";
+    });
+
+    backToUsers.addEventListener("click", () => {
+      videosSection.style.display = "none";
+      userTable.style.display = "table";
+      titleUsers.style.display = "block";
+      searchBox.style.display = "block";
+      totalDiv.style.display = "block";
+    });
+
+    // 🔹 Escuchar datos en Firebase
+    db.ref("users").on("value", (snapshot) => {
+      users = [];
+      snapshot.forEach((child) => {
+        users.push({ uid: child.key, ...child.val() });
+      });
+      renderUsers(searchBox.value);
+    });
+
+    db.ref("hacks").on("value", (snapshot) => {
+      hacks = snapshot.val() || {};
+      renderVideos(videoSearch.value);
+    });
+  </script>
+</body>
+</html>
