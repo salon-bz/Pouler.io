@@ -7,38 +7,19 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div id="auth-container" class="card">
+    <h2>Entrar al Chat</h2>
+    <input type="text" id="name" placeholder="Nombre" />
+    <button id="loginAnon">Entrar</button>
+  </div>
 
-  <!-- LOGIN -->
-  <section id="auth" class="card">
-    <h2>Crear cuenta</h2>
-    <p>Para continuar ingresa tus datos.</p>
-
-    <label>Nombre</label>
-    <input id="nameInput" type="text" placeholder="Tu nombre">
-
-    <label>Correo</label>
-    <input id="emailInput" type="email" placeholder="correo@ejemplo.com">
-
-    <label>Contraseña</label>
-    <input id="passwordInput" type="password" placeholder="••••••••">
-
-    <button id="registerBtn">Crear Cuenta</button>
-  </section>
-
-  <!-- CHAT -->
-  <section id="chat" style="display:none;">
-    <div class="chat-box">
-      <h2>Chat Global</h2>
-      <div id="messages" class="messages"></div>
-
-      <div class="send-area">
-        <textarea id="messageInput" placeholder="Escribe..."></textarea>
-        <button id="sendBtn">Enviar</button>
-      </div>
-
-      <button id="logoutBtn" class="logout">Cerrar sesión</button>
-    </div>
-  </section>
+  <div id="chat-container" class="hidden card">
+    <h2>Chat Global</h2>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Escribe un mensaje..." />
+    <button id="sendBtn">Enviar</button>
+    <button id="logoutBtn" class="logout">Cerrar Sesión</button>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>
